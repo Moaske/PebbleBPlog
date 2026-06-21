@@ -1,114 +1,224 @@
-// Keys must match main.c
+var Clay = require('@rebble/clay');
+var clayConfig = require('./config');
+var clay = new Clay(clayConfig, null, { autoHandleEvents: false });
+
+// And add this event listener alongside your existing webviewclosed:
+Pebble.addEventListener('showConfiguration', function() {
+  Pebble.openURL(clay.generateUrl());
+});
+
+// ----- Message keys for readings (must match main.c) -----
 var KEY_INDEX     = 0;
 var KEY_SYSTOLIC  = 1;
 var KEY_DIASTOLIC = 2;
 var KEY_DATE      = 3;
 var KEY_TOTAL     = 4;
 
-// --- Settings helpers ---
+// ----- Settings helpers -----
+
+function settingsFromClay(dict) {
+  return {
+    haUrl:     (dict['0'] || dict['HaUrl']     || '').toString().trim(),
+    haToken:   (dict['1'] || dict['HaToken']   || '').toString().trim(),
+    sysEntity: (dict['2'] || dict['SysEntity'] || '').toString().trim().toLowerCase(),
+    diaEntity: (dict['3'] || dict['DiaEntity'] || '').toString().trim().toLowerCase()
+  };
+}
 
 function loadSettings() {
   return {
-    haUrl:     localStorage.getItem('haUrl')     || '',
-    haToken:   localStorage.getItem('haToken')   || '',
-    sysEntity: localStorage.getItem('sysEntity') || '',
-    diaEntity: localStorage.getItem('diaEntity') || ''
+    haUrl:     (localStorage.getItem('HaUrl')     || '').trim(),
+    haToken:   (localStorage.getItem('HaToken')   || '').trim(),
+    sysEntity: (localStorage.getItem('SysEntity') || '').trim().toLowerCase(),
+    diaEntity: (localStorage.getItem('DiaEntity') || '').trim().toLowerCase()
   };
 }
 
-function saveSettings(cfg) {
-  localStorage.setItem('haUrl',     cfg.haUrl     || '');
-  localStorage.setItem('haToken',   cfg.haToken   || '');
-  localStorage.setItem('sysEntity', cfg.sysEntity || '');
-  localStorage.setItem('diaEntity', cfg.diaEntity || '');
+function saveSettingsStruct(s) {
+  localStorage.setItem('HaUrl',     s.haUrl     || '');
+  localStorage.setItem('HaToken',   s.haToken   || '');
+  localStorage.setItem('SysEntity', s.sysEntity || '');
+  localStorage.setItem('DiaEntity', s.diaEntity || '');
+  console.log('BP: saved settings: ' + JSON.stringify(s));
 }
 
-// --- Fetch from Home Assistant ---
+function validateSettings(s, isTest) {
+  var p = isTest ? 'BP TEST:' : 'BP:';
 
-function fetchBPData() {
-  var s = loadSettings();
-  if (!s.haUrl || !s.haToken || !s.sysEntity || !s.diaEntity) {
-    console.log('BP: settings not yet configured');
+  if (!s.haUrl || !/^https?:\/\//.test(s.haUrl)) {
+    console.log(p + ' invalid URL: ' + s.haUrl);
+    return false;
+  }
+  if (!s.haToken || s.haToken.length < 20) {
+    console.log(p + ' invalid token (too short or empty)');
+    return false;
+  }
+  if (!s.sysEntity || s.sysEntity.indexOf('.') === -1) {
+    console.log(p + ' invalid systolic entity: ' + s.sysEntity);
+    return false;
+  }
+  if (!s.diaEntity || s.diaEntity.indexOf('.') === -1) {
+    console.log(p + ' invalid diastolic entity: ' + s.diaEntity);
+    return false;
+  }
+  return true;
+}
+
+// ----- Fetch from Home Assistant -----
+
+function fetchBPData(settings, mode) {
+  var isTest = (mode === 'test');
+  var p = isTest ? 'BP TEST:' : 'BP:';
+  var s = settings || loadSettings();
+
+  if (!validateSettings(s, isTest)) {
+    console.log(p + ' settings not valid, aborting fetch');
     return;
   }
 
-  // Ask HA for the last 60 days of state history for both sensors
-  var start = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
-  var url = s.haUrl + '/api/history/period/' + start
-    + '?filter_entity_id=' + encodeURIComponent(s.sysEntity)
-    + ',' + encodeURIComponent(s.diaEntity);
+  var wsUrl = s.haUrl
+    .replace(/\/+$/, '')
+    .replace(/^https:/, 'wss:')
+    .replace(/^http:/,  'ws:')
+    + '/api/websocket';
 
-  var req = new XMLHttpRequest();
-  req.open('GET', url, true);
-  req.setRequestHeader('Authorization', 'Bearer ' + s.haToken);
-  req.setRequestHeader('Content-Type', 'application/json');
+  console.log(p + ' connecting: ' + wsUrl);
 
-  req.onload = function () {
-    if (req.status === 200) {
-      try { processData(JSON.parse(req.responseText), s); }
-      catch (e) { console.log('BP parse error: ' + e); }
-    } else {
-      console.log('BP HTTP error: ' + req.status);
+  var ws;
+  try { ws = new WebSocket(wsUrl); }
+  catch(e) { console.log(p + ' WebSocket not supported: ' + e); return; }
+
+  ws.onopen = function() { console.log(p + ' WS open'); };
+
+  ws.onmessage = function(event) {
+    var msg;
+    try { msg = JSON.parse(event.data); }
+    catch(e) { console.log(p + ' WS parse error: ' + e); return; }
+
+    console.log(p + ' WS msg: ' + msg.type);
+
+    if (msg.type === 'auth_required') {
+      ws.send(JSON.stringify({ type: 'auth', access_token: s.haToken }));
+
+    } else if (msg.type === 'auth_ok') {
+      ws.send(JSON.stringify({
+        id: 1,
+        type: 'recorder/list_statistic_ids',
+        statistic_type: 'mean'
+      }));
+
+    } else if (msg.type === 'auth_invalid') {
+      console.log(p + ' WS auth invalid');
+      ws.close();
+
+    } else if (msg.type === 'result' && msg.id === 1) {
+      if (msg.success && msg.result) {
+        var ids = msg.result;
+        for (var i = 0; i < ids.length; i++) {
+          var sid = ids[i].statistic_id || '';
+          if (sid.indexOf('blood') !== -1 || sid.indexOf('pressure') !== -1 ||
+              sid.indexOf('systolic') !== -1 || sid.indexOf('diastolic') !== -1) {
+            console.log(p + ' found stat: ' + JSON.stringify(ids[i]));
+          }
+        }
+      }
+      var start = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      ws.send(JSON.stringify({
+        id: 2,
+        type: 'recorder/statistics_during_period',
+        start_time: start,
+        statistic_ids: [s.sysEntity, s.diaEntity],
+        period: '5minute',
+        types: ['mean']
+      }));
+
+    } else if (msg.type === 'result' && msg.id === 2) {
+      ws.close();
+      if (msg.success && msg.result) {
+        console.log(p + ' WS result: ' + JSON.stringify(msg.result).substring(0, 500));
+        processStatistics(msg.result, s, p);
+      } else {
+        console.log(p + ' WS stats failed: ' + JSON.stringify(msg.error));
+      }
     }
   };
-  req.onerror = function () { console.log('BP network error'); };
-  req.send();
+
+  ws.onerror = function() { console.log(p + ' WS error'); };
+  ws.onclose = function() { console.log(p + ' WS closed'); };
 }
 
-// --- Process HA history response ---
+function pad(n) {
+  return n < 10 ? '0' + n : '' + n;
+}
 
-function processData(data, s) {
-  // data = [ [sysStates...], [diaStates...] ]
-  // Each state: { entity_id, state, last_changed, ... }
-  var sysArr = [], diaArr = [];
+// ----- Process data from Home Assistant -----
 
-  for (var i = 0; i < data.length; i++) {
-    if (!data[i] || data[i].length === 0) continue;
-    var entityId = data[i][0].entity_id || '';
-    if (entityId === s.sysEntity) { sysArr = data[i]; }
-    else if (entityId === s.diaEntity) { diaArr = data[i]; }
+function processStatistics(result, s, p) {
+  var sysStats = result[s.sysEntity] || [];
+  var diaStats = result[s.diaEntity] || [];
+  console.log(p + ' sys:' + sysStats.length + ' dia:' + diaStats.length + ' entries');
+
+  if (!sysStats.length || !diaStats.length) {
+    console.log(p + ' no statistics data found');
+    return;
   }
 
-  // Fallback: if entity_id missing, trust order of filter_entity_id param
-  if (sysArr.length === 0 && diaArr.length === 0 && data.length >= 2) {
-    sysArr = data[0] || [];
-    diaArr = data[1] || [];
+  // Map systolic entries by start time for matching with diastolic
+  var sysMap = {};
+  for (var i = 0; i < sysStats.length; i++) {
+    var se = sysStats[i];
+    if (se && se.start && se.mean !== null && se.mean !== undefined) {
+      sysMap[se.start] = se.mean;
+    }
   }
 
-  // Take the 10 most recent matching pairs (by position from the end)
-  var count = Math.min(sysArr.length, diaArr.length, 10);
+  // Walk newest-first, deduplicate consecutive identical readings
   var readings = [];
+  var lastSys = -1, lastDia = -1;
 
-  for (var j = 1; j <= count; j++) {
-    var se = sysArr[sysArr.length - j];
-    var de = diaArr[diaArr.length - j];
-    var sys = parseInt(se.state, 10);
-    var dia = parseInt(de.state, 10);
-    if (isNaN(sys) || isNaN(dia)) continue;
+  for (var j = diaStats.length - 1; j >= 0 && readings.length < 10; j--) {
+    var de = diaStats[j];
+    if (!de || !de.start || de.mean === null || de.mean === undefined) continue;
+    var sysMean = sysMap[de.start];
+    if (sysMean === undefined) continue;
 
-    // Format date as "DD/MM HH:MM"
-    var d = new Date(se.last_changed || se.last_updated || Date.now());
-    var dateStr = pad(d.getDate()) + '/' + pad(d.getMonth() + 1)
-      + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    var sys = Math.round(sysMean);
+    var dia = Math.round(de.mean);
+    if (!sys || !dia) continue;
 
+    // Skip if identical to previous kept reading
+    if (sys === lastSys && dia === lastDia) continue;
+    lastSys = sys;
+    lastDia = dia;
+
+    var d = new Date(de.start);
+    var dateStr = pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ' +
+                  pad(d.getHours()) + ':' + pad(d.getMinutes());
     readings.push({ systolic: sys, diastolic: dia, date: dateStr });
   }
 
-  // Newest first (j=1 gave latest, so reverse restores newest-at-top)
-  // readings[0] is already the newest — no reversal needed
+  // Reverse to show oldest at top, newest at bottom
+  readings.reverse();
+  console.log(p + ' prepared ' + readings.length + ' unique readings');
 
+  if (!readings.length) {
+    console.log(p + ' no matched readings found');
+    return;
+  }
   sendTotal(readings);
 }
-
-function pad(n) { return n < 10 ? '0' + n : '' + n; }
-
-// --- Send readings to watch one by one ---
+// ----- Send readings to watch -----
 
 function sendTotal(readings) {
-  var msg = {}; msg[KEY_TOTAL] = readings.length;
+  var msg = {};
+  msg[KEY_TOTAL] = readings.length;
   Pebble.sendAppMessage(msg,
-    function () { sendReading(readings, 0); },
-    function () { console.log('BP: failed to send total'); }
+    function () {
+      sendReading(readings, 0);
+    },
+    function () {
+      console.log('BP: failed to send total');
+    }
   );
 }
 
@@ -120,78 +230,50 @@ function sendReading(readings, index) {
   msg[KEY_SYSTOLIC]  = r.systolic;
   msg[KEY_DIASTOLIC] = r.diastolic;
   msg[KEY_DATE]      = r.date;
+
   Pebble.sendAppMessage(msg,
-    function () { sendReading(readings, index + 1); },
-    function () { console.log('BP: failed to send reading ' + index); }
+    function () {
+      sendReading(readings, index + 1);
+    },
+    function () {
+      console.log('BP: failed to send reading ' + index);
+    }
   );
 }
 
-// --- Config / settings page ---
-// Built as an inline HTML page so nothing needs hosting
-
-function buildConfigPage() {
-  var s = loadSettings();
-  var html = '<!DOCTYPE html><html><head>'
-    + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    + '<style>'
-    + 'body{font-family:sans-serif;max-width:420px;margin:0 auto;padding:20px;'
-    + 'background:#1c1c1e;color:#f2f2f7}'
-    + 'h2{font-size:18px;margin-bottom:16px;font-weight:500}'
-    + 'label{display:block;font-size:12px;color:#8e8e93;margin-bottom:4px;margin-top:14px}'
-    + 'input{width:100%;padding:10px 12px;background:#2c2c2e;border:1px solid #3a3a3c;'
-    + 'border-radius:8px;color:#f2f2f7;font-size:15px;box-sizing:border-box}'
-    + 'button{display:block;width:100%;margin-top:24px;padding:13px;background:#0a84ff;'
-    + 'color:#fff;font-size:16px;font-weight:500;border:none;border-radius:10px;cursor:pointer}'
-    + 'p{font-size:12px;color:#8e8e93;margin-top:10px}'
-    + '</style></head><body>'
-    + '<h2>Blood Pressure settings</h2>'
-    + '<label>Home Assistant URL</label>'
-    + '<input id="haUrl" type="url" placeholder="https://xxxxx.ui.nabu.casa"'
-    + ' value="' + esc(s.haUrl) + '">'
-    + '<label>Long-lived access token</label>'
-    + '<input id="haToken" type="password" placeholder="Paste your HA token here"'
-    + ' value="' + esc(s.haToken) + '">'
-    + '<label>Systolic entity ID</label>'
-    + '<input id="sysEntity" placeholder="sensor.pixel_blood_pressure_systolic"'
-    + ' value="' + esc(s.sysEntity) + '">'
-    + '<label>Diastolic entity ID</label>'
-    + '<input id="diaEntity" placeholder="sensor.pixel_blood_pressure_diastolic"'
-    + ' value="' + esc(s.diaEntity) + '">'
-    + '<button onclick="save()">Save and close</button>'
-    + '<p>Find entity IDs in HA under Settings → Devices & Services → your Pixel.</p>'
-    + '<script>'
-    + 'function esc(s){return(s||"").replace(/"/g,"&quot;")}'
-    + 'function save(){'
-    + 'var cfg={haUrl:document.getElementById("haUrl").value.trim(),'
-    + 'haToken:document.getElementById("haToken").value.trim(),'
-    + 'sysEntity:document.getElementById("sysEntity").value.trim(),'
-    + 'diaEntity:document.getElementById("diaEntity").value.trim()};'
-    + 'var encoded=encodeURIComponent(JSON.stringify(cfg));'
-    + 'document.location="pebblekit://close?response="+encoded;}'
-    + '</script></body></html>';
-  return 'data:text/html,' + encodeURIComponent(html);
-}
-
-function esc(s) { return (s || '').replace(/"/g, '"'); }
-
-// --- Pebble event listeners ---
+// ----- Pebble events -----
 
 Pebble.addEventListener('ready', function () {
   console.log('BP: PebbleKit JS ready');
-  fetchBPData();
+  fetchBPData(null, 'normal');  // try with any stored settings
 });
 
-Pebble.addEventListener('showConfiguration', function () {
-  Pebble.openURL(buildConfigPage());
-});
-
+// React when the config page closes (Clay handles opening/closing)
 Pebble.addEventListener('webviewclosed', function (e) {
-  if (!e.response || e.response === 'CANCELLED') return;
+  if (!e || !e.response || e.response === 'CANCELLED') {
+    console.log('BP: config cancelled or empty');
+    return;
+  }
+
+  var dict;
   try {
-    var cfg = JSON.parse(decodeURIComponent(e.response));
-    saveSettings(cfg);
-    fetchBPData();
+    dict = clay.getSettings(e.response);
   } catch (err) {
-    console.log('BP: config parse error — ' + err);
+    console.log('BP: clay getSettings error: ' + err);
+    return;
+  }
+
+  console.log('BP: raw Clay settings: ' + JSON.stringify(dict));
+
+  var s = settingsFromClay(dict);
+  console.log('BP: normalized settings: ' + JSON.stringify(s));
+
+  saveSettingsStruct(s);
+
+  if (s.testConnection) {
+    console.log('BP TEST: running full history fetch test');
+    fetchBPData(s, 'test');
+  } else {
+    fetchBPData(s, 'normal');
   }
 });

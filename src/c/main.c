@@ -1,6 +1,6 @@
 #include <pebble.h>
 
-// Message keys — must match pebble-js-app.js
+// Message keys — must match index.js
 #define KEY_INDEX     0
 #define KEY_SYSTOLIC  1
 #define KEY_DIASTOLIC 2

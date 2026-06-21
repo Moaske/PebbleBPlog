@@ -1,6 +1,8 @@
 {
     "author": "moaskefoto@gmail.com",
-    "dependencies": {},
+    "dependencies": {
+        "@rebble/clay": "^1.0.10"
+    },
     "keywords": [],
     "name": "bp-log",
     "pebble": {
@@ -9,14 +11,28 @@
         ],
         "displayName": "Blood Pressure Log",
         "enableMultiJS": true,
-        "messageKeys": [],
+        "messageKeys": {
+            "DiaEntity": 3,
+            "HaToken": 1,
+            "HaUrl": 0,
+            "SysEntity": 2
+        },
         "projectType": "native",
         "resources": {
             "media": [
                 {
-                    "file": "images/icon25_health_data.png",
-                    "name": "ICON_HEALTH_DATA",
-                    "targetPlatforms": null,
+                    "file": "images/app_icon.png",
+                    "menuIcon": true,
+                    "name": "IMAGE_APP_ICON",
+                    "targetPlatforms": [
+                        "aplite",
+                        "basalt",
+                        "chalk",
+                        "diorite",
+                        "emery",
+                        "gabbro",
+                        "flint"
+                    ],
                     "type": "png"
                 }
             ]
