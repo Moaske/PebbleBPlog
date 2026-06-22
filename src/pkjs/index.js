@@ -197,8 +197,6 @@ function processStatistics(result, s, p) {
     readings.push({ systolic: sys, diastolic: dia, date: dateStr });
   }
 
-  // Reverse to show oldest at top, newest at bottom
-  readings.reverse();
   console.log(p + ' prepared ' + readings.length + ' unique readings');
 
   if (!readings.length) {
