@@ -34,6 +34,24 @@
                         "flint"
                     ],
                     "type": "png"
+                },
+                {
+                    "file": "images/action_icon_up.png",
+                    "name": "ACTION_ICON_UP",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
+                },
+                {
+                    "file": "images/action_icon_down.png",
+                    "name": "ACTION_ICON_DOWN",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
+                },
+                {
+                    "file": "images/action_icon_info.png",
+                    "name": "ACTION_ICON_INFO",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
                 }
             ]
         },
@@ -52,5 +70,5 @@
             "watchface": false
         }
     },
-    "version": "1.1.1"
+    "version": "1.2.0"
 }

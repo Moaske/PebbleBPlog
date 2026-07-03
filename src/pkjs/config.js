@@ -1,7 +1,7 @@
 module.exports = [
   {
     "type": "heading",
-    "defaultValue": "Blood Pressure Log"
+    "defaultValue": "Blood Pressure Diary"
   },
   {
     "type": "text",
@@ -49,7 +49,7 @@ module.exports = [
         "label": "Systolic",
         "defaultValue": "",
         "attributes": {
-          "placeholder": "sensor.pixel_blood_pressure_systolic"
+          "placeholder": "sensor.bp_systolic"
         }
       },
       {
@@ -58,7 +58,16 @@ module.exports = [
         "label": "Diastolic",
         "defaultValue": "",
         "attributes": {
-          "placeholder": "sensor.pixel_blood_pressure_diastolic"
+          "placeholder": "sensor.bp_diastolic"
+        }
+      },
+      {
+        "type": "input",
+        "messageKey": "RhrEntity",
+        "label": "Resting heart rate",
+        "defaultValue": "",
+        "attributes": {
+          "placeholder": "sensor.resting_heart_rate"
         }
       }
     ]
