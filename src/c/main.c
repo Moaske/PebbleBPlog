@@ -65,7 +65,7 @@ static void menu_draw_row(GContext *ctx, const Layer *cell,
   bool highlighted = menu_cell_layer_is_highlighted(cell);
 
 #ifdef PBL_COLOR
-  if (!highlighted && r->systolic > 150) {
+  if (!highlighted && r->systolic > 146) {
     graphics_context_set_fill_color(ctx, GColorMelon);
     graphics_fill_rect(ctx, bounds, 0, GCornerNone);
   }
@@ -81,7 +81,7 @@ static void menu_draw_row(GContext *ctx, const Layer *cell,
     GRect(6, 2, bounds.size.w - 12, 34),
     GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 
-  if (r->systolic > 150) {
+  if (r->systolic > 146) {
     graphics_draw_text(ctx, "!",
       fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD),
       GRect(6, 2, bounds.size.w - 12, 34),
