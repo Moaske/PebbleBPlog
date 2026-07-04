@@ -22,9 +22,9 @@ typedef struct {
 } BPReading;
 
 static Window         *s_window;
-static MenuLayer       *s_menu_layer;
-static TextLayer       *s_status_layer;
-static ActionBarLayer  *s_action_bar;
+static MenuLayer      *s_menu_layer;
+static TextLayer      *s_status_layer;
+static ActionBarLayer *s_action_bar;
 
 static GBitmap *s_icon_up;
 static GBitmap *s_icon_down;
@@ -32,7 +32,15 @@ static GBitmap *s_icon_info;
 
 static BPReading s_readings[MAX_READINGS];
 static int s_reading_count = 0;
-static int s_selected_row = 0;
+
+// --- Public accessors for detail.c ---
+
+int bp_get_count(void)                { return s_reading_count; }
+int bp_get_systolic(int i)            { return s_readings[i].systolic; }
+int bp_get_diastolic(int i)           { return s_readings[i].diastolic; }
+int bp_get_rhr(int i)                 { return s_readings[i].rhr; }
+const char *bp_get_date(int i)        { return s_readings[i].date; }
+const char *bp_get_fulldate(int i)    { return s_readings[i].fulldate; }
 
 // --- Row callbacks ---
 
@@ -57,7 +65,7 @@ static void menu_draw_row(GContext *ctx, const Layer *cell,
   bool highlighted = menu_cell_layer_is_highlighted(cell);
 
 #ifdef PBL_COLOR
-  if (!highlighted && r->systolic > 146) {
+  if (!highlighted && r->systolic > 150) {
     graphics_context_set_fill_color(ctx, GColorMelon);
     graphics_fill_rect(ctx, bounds, 0, GCornerNone);
   }
@@ -73,7 +81,7 @@ static void menu_draw_row(GContext *ctx, const Layer *cell,
     GRect(6, 2, bounds.size.w - 12, 34),
     GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 
-  if (r->systolic > 146) {
+  if (r->systolic > 150) {
     graphics_draw_text(ctx, "!",
       fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD),
       GRect(6, 2, bounds.size.w - 12, 34),
@@ -98,15 +106,11 @@ static void menu_draw_row(GContext *ctx, const Layer *cell,
 
 // --- Selection tracking + click handler ---
 
-static void menu_selection_changed(MenuLayer *ml, MenuIndex new_index,
-                                   MenuIndex old_index, void *ctx) {
-  s_selected_row = new_index.row;
-}
-
 static void menu_select_click(MenuLayer *ml, MenuIndex *cell_index, void *ctx) {
   if (s_reading_count == 0) return;
-  BPReading *r = &s_readings[cell_index->row];
-  detail_window_show(r->systolic, r->diastolic, r->rhr, r->fulldate);
+  int i = cell_index->row;
+  detail_window_show(i, s_readings[i].systolic, s_readings[i].diastolic,
+                     s_readings[i].rhr, s_readings[i].fulldate);
 }
 
 // --- AppMessage: receive data from phone ---
@@ -165,29 +169,26 @@ static void window_load(Window *window) {
   s_menu_layer = menu_layer_create(menu_bounds);
   menu_layer_set_highlight_colors(s_menu_layer, GColorBlack, GColorWhite);
   menu_layer_set_callbacks(s_menu_layer, NULL, (MenuLayerCallbacks){
-    .get_num_rows        = menu_num_rows,
-    .draw_row             = menu_draw_row,
-    .get_cell_height       = menu_cell_height,
-    .selection_changed     = menu_selection_changed,
-    .select_click          = menu_select_click,
+    .get_num_rows  = menu_num_rows,
+    .draw_row      = menu_draw_row,
+    .get_cell_height = menu_cell_height,
+    .select_click  = menu_select_click,
   });
   menu_layer_set_click_config_onto_window(s_menu_layer, window);
   layer_add_child(root, menu_layer_get_layer(s_menu_layer));
 
-  // Action bar with up / down / info icons
   s_icon_up   = gbitmap_create_with_resource(RESOURCE_ID_ACTION_ICON_UP);
   s_icon_down = gbitmap_create_with_resource(RESOURCE_ID_ACTION_ICON_DOWN);
   s_icon_info = gbitmap_create_with_resource(RESOURCE_ID_ACTION_ICON_INFO);
 
   s_action_bar = action_bar_layer_create();
   action_bar_layer_set_background_color(s_action_bar, GColorLightGray);
-  action_bar_layer_set_icon(s_action_bar, BUTTON_ID_UP, s_icon_up);
-  action_bar_layer_set_icon(s_action_bar, BUTTON_ID_DOWN, s_icon_down);
+  action_bar_layer_set_icon(s_action_bar, BUTTON_ID_UP,     s_icon_up);
+  action_bar_layer_set_icon(s_action_bar, BUTTON_ID_DOWN,   s_icon_down);
   action_bar_layer_set_icon(s_action_bar, BUTTON_ID_SELECT, s_icon_info);
-  action_bar_layer_set_click_config_provider(s_action_bar, NULL);
   action_bar_layer_add_to_window(s_action_bar, window);
 
-  // Action bar's own up/down/select clicks should still drive the menu
+  // Let the menu handle all button presses on the main list
   menu_layer_set_click_config_onto_window(s_menu_layer, window);
 }
 

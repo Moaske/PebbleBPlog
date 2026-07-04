@@ -1,4 +1,4 @@
 #pragma once
 #include <pebble.h>
 
-void detail_window_show(int systolic, int diastolic, int rhr, const char *fulldate);
+void detail_window_show(int index, int systolic, int diastolic, int rhr, const char *fulldate);

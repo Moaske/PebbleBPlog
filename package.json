@@ -15,6 +15,7 @@
             "DiaEntity": 3,
             "HaToken": 1,
             "HaUrl": 0,
+            "RhrEntity": 4,
             "SysEntity": 2
         },
         "projectType": "native",
@@ -70,5 +71,5 @@
             "watchface": false
         }
     },
-    "version": "1.2.0"
+    "version": "1.3.0"
 }

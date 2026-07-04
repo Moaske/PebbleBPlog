@@ -108,6 +108,7 @@ function fetchBPData(settings, mode) {
     } else if (msg.type === 'auth_ok') {
       var statisticIds = [s.sysEntity, s.diaEntity];
       if (s.rhrEntity) statisticIds.push(s.rhrEntity);
+      console.log(p + ' requesting stats for: ' + JSON.stringify(statisticIds));
 
       var start = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       ws.send(JSON.stringify({
