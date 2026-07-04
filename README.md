@@ -1,6 +1,6 @@
 # PebbleBPlog
 Blood Pressure Log app for Pebble Emery watch. Gets data via Health Connect on Android en Home Assistant as intermediate.
-v1.0.1 First working version, still work in progress :-)
+v1.3 now release fähig with actionbar, detail page, working button navigation and RHR on detail page :-)
 
 Shows my Blood Pressure diary from a BT enabled BP cuff that writes it to Health Connect.
 
