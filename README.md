@@ -8,13 +8,13 @@ Might be way to niche to release to Pebble store ... so I'll give that another t
 
 Shows my Blood Pressure diary from a BT enabled Blood Pressure cuff that writes it to its Android app which syncs to Android Health Connect.
 
-The chain to get in onto the watch:
+## The chain to get in onto the watch:
 
--Bluetooth Blood Pressure Cuff takes reading saves it to its phonre app, which syncs to Android Health Connect on the Android phone
+- Bluetooth Blood Pressure Cuff takes reading saves it to its phonre app, which syncs to Android Health Connect on the Android phone
 
--Home Assistant companion app on phone exposes health metrics from Android Health Connect as diagnostic sensors in HA, but you need to enable them first from the HA companion app on the phone (needs permissions). These entities are normally disabled by default...
+- Home Assistant companion app on phone exposes health metrics from Android Health Connect as diagnostic sensors in HA, but you need to enable them first from the HA companion app on the phone (needs permissions). These entities are normally disabled by default...
 
--Setup new Template sensors in HA to actually record and store these values reliably. You'll do this easiest by adding them directly into `configuration.yaml` something like this (check naming of yours in the HA companion app after enabling them):
+- Setup new Template sensors in HA to actually record and store these values reliably. You'll do this easiest by adding them directly into `configuration.yaml` something like this (check naming of yours in the HA companion app after enabling them):
 ```yaml
 template:
   - sensor:
@@ -26,8 +26,9 @@ template:
 ```
 Don't forget to reboot HA after adding the sensors. After adding, look them up in HA and check its settings for the actual entity-ID that has been generated (you'll need it in the settings page for the Pebble app)
 
--Have the watch app read this sensor data through HA's REST api (needs HA instance URL, Long lived access token and correct sensor ID's of the template sensors in de setup page on the phone companion for Pebble) See screenshot below.
+- Have the watch app read this sensor data through HA's REST api (needs HA instance URL, Long lived access token and correct sensor ID's of the template sensors in de setup page on the phone companion for Pebble) See screenshot below.
 
+## Phone settings
 If you want to have it work out and about, your URL needs to be the one reachable from outside (like the Nabu Casa subscription).
 
 <img src="screenshots/settings_screenshot.png" width=360>
