@@ -14,7 +14,7 @@ The chain to get in onto the watch:
 
 -Home Assistant companion app on phone exposes health metrics from Android Health Connect as diagnostic sensors in HA, but you need to enable them first from the HA companion app on the phone (needs permissions). These entities are normally disabled by default...
 
--Setup new Template sensors in HA to actually record and store these values reliably. You'll do this easiest by adding them directly into configuration.yaml something like this (check naming of yours in the HA companion app after enabling them):
+-Setup new Template sensors in HA to actually record and store these values reliably. You'll do this easiest by adding them directly into `configuration.yaml` something like this (check naming of yours in the HA companion app after enabling them):
 ```yaml
 template:
   - sensor:
