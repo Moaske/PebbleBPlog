@@ -2,7 +2,7 @@
 Blood Pressure Diary app for Pebble Emery watch. Gets data via Health Connect on Android en Home Assistant as intermediate.
 v1.3 now release-fähig with actionbar, detail page, working button navigation and RHR on detail page.
 
-Might be way to niche to release to Pebble store ... so I'll give that another thought :-)
+Might be way too niche to release to Pebble store ... so I'll give that another thought :-)
 
 <img src="screenshots/bp_diary_main.png">&nbsp; &nbsp; &nbsp;<img src="screenshots/bp_diary_detail.png">
 
