@@ -139,12 +139,14 @@ static void detail_window_unload(Window *window) {
 // --- Public entry point ---
 
 void detail_window_show(int index, int systolic, int diastolic, int rhr, const char *fulldate) {
-  detail_load_index(index);
-
   s_detail_window = window_create();
   window_set_window_handlers(s_detail_window, (WindowHandlers){
     .load   = detail_window_load,
     .unload = detail_window_unload,
   });
+
+  // Load index after window exists so background colour applies correctly
+  detail_load_index(index);
+
   window_stack_push(s_detail_window, true);
 }
