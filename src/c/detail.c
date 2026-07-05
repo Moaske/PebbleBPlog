@@ -1,14 +1,11 @@
 #include <pebble.h>
 #include "detail.h"
 
-// Forward declaration so click handlers can call it
-static void detail_load_index(int index);
-
-// Provided by main.c — gives detail.c access to the readings array
-extern int   bp_get_count(void);
-extern int   bp_get_systolic(int index);
-extern int   bp_get_diastolic(int index);
-extern int   bp_get_rhr(int index);
+// Provided by main.c — gives detail.c read-only access to the readings array
+extern int         bp_get_count(void);
+extern int         bp_get_systolic(int index);
+extern int         bp_get_diastolic(int index);
+extern int         bp_get_rhr(int index);
 extern const char *bp_get_date(int index);
 extern const char *bp_get_fulldate(int index);
 
@@ -25,13 +22,24 @@ static char s_rhr_value_buf[16];
 
 static int s_current_index = 0;
 
-// --- Fill buffers from readings array ---
+// --- Fill buffers and refresh layers for a given reading index ---
 
 static void detail_load_index(int index) {
   int count = bp_get_count();
   if (index < 0) index = 0;
   if (index >= count) index = count - 1;
   s_current_index = index;
+
+  // Update background colour on every navigation
+#ifdef PBL_COLOR
+  if (s_detail_window) {
+    if (bp_get_systolic(index) > 146) {
+      window_set_background_color(s_detail_window, GColorMelon);
+    } else {
+      window_set_background_color(s_detail_window, GColorWhite);
+    }
+  }
+#endif
 
   snprintf(s_values_buf, sizeof(s_values_buf),
            "%d/%d", bp_get_systolic(index), bp_get_diastolic(index));
@@ -53,21 +61,19 @@ static void detail_load_index(int index) {
   }
 
   // Refresh layers if window is already on screen
-  if (s_values_layer)   text_layer_set_text(s_values_layer,    s_values_buf);
-  if (s_date_layer)     text_layer_set_text(s_date_layer,      s_date_buf);
-  if (s_rhr_layer)      text_layer_set_text(s_rhr_layer,       s_rhr_label_buf);
-  if (s_rhr_value_layer)text_layer_set_text(s_rhr_value_layer, s_rhr_value_buf);
+  if (s_values_layer)    text_layer_set_text(s_values_layer,    s_values_buf);
+  if (s_date_layer)      text_layer_set_text(s_date_layer,      s_date_buf);
+  if (s_rhr_layer)       text_layer_set_text(s_rhr_layer,       s_rhr_label_buf);
+  if (s_rhr_value_layer) text_layer_set_text(s_rhr_value_layer, s_rhr_value_buf);
 }
 
 // --- Click handlers ---
 
 static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  // Up = previous (lower index = newer reading)
   detail_load_index(s_current_index - 1);
 }
 
 static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  // Down = next (higher index = older reading)
   detail_load_index(s_current_index + 1);
 }
 
@@ -87,13 +93,15 @@ static void detail_window_load(Window *window) {
   text_layer_set_text(s_values_layer, s_values_buf);
   text_layer_set_font(s_values_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
   text_layer_set_text_alignment(s_values_layer, GTextAlignmentCenter);
+  text_layer_set_background_color(s_values_layer, GColorClear);
   layer_add_child(root, text_layer_get_layer(s_values_layer));
 
-  // Date block — weekday / date / time, three lines
+  // Date block — weekday / date / time, three lines, sent pre-formatted from JS
   s_date_layer = text_layer_create(GRect(0, 66, b.size.w, 72));
   text_layer_set_text(s_date_layer, s_date_buf);
   text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24));
   text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
+  text_layer_set_background_color(s_date_layer, GColorClear);
   layer_add_child(root, text_layer_get_layer(s_date_layer));
 
   // RHR label
@@ -101,6 +109,7 @@ static void detail_window_load(Window *window) {
   text_layer_set_text(s_rhr_layer, s_rhr_label_buf);
   text_layer_set_font(s_rhr_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
   text_layer_set_text_alignment(s_rhr_layer, GTextAlignmentCenter);
+  text_layer_set_background_color(s_rhr_layer, GColorClear);
   layer_add_child(root, text_layer_get_layer(s_rhr_layer));
 
   // RHR value — larger, on its own line
@@ -108,6 +117,7 @@ static void detail_window_load(Window *window) {
   text_layer_set_text(s_rhr_value_layer, s_rhr_value_buf);
   text_layer_set_font(s_rhr_value_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
   text_layer_set_text_alignment(s_rhr_value_layer, GTextAlignmentCenter);
+  text_layer_set_background_color(s_rhr_value_layer, GColorClear);
   layer_add_child(root, text_layer_get_layer(s_rhr_value_layer));
 
   window_set_click_config_provider(window, click_config_provider);
