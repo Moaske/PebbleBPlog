@@ -4,7 +4,7 @@ v1.3 now release-fähig with actionbar, detail page, working button navigation a
 
 Might be way too niche to release to Pebble store ... so I'll give that another thought :-)
 
-<img src="screenshots/bp_diary_main.png">&nbsp; &nbsp; &nbsp;<img src="screenshots/bp_diary_detail.png">
+<img src="screenshots/bp_diary_main.png">&nbsp; &nbsp; &nbsp;<img src="screenshots/bp_diary_main2.png">&nbsp; &nbsp; &nbsp;<img src="screenshots/bp_diary_detail.png">
 
 Shows my Blood Pressure diary from a BT enabled Blood Pressure cuff that writes it to its Android app which syncs to Android Health Connect.
 
