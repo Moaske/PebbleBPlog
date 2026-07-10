@@ -20,7 +20,7 @@ template:
   - sensor:
       - name: "BP Systolic"
         unique_id: bp_systolic_recorded
-        state: "{{ states('sensor.mobile_YOURDEVICE_systolic_blood_pressure') }}"
+        state: "{{ states('sensor.mobile_YOURDEVICE_systolic_blood_pressure') }}" # Change to your exact entity name
         unit_of_measurement: "mmHg"
         state_class: measurement
 ```
