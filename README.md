@@ -10,7 +10,7 @@ Shows my Blood Pressure diary from a Medisana Bluetooth enabled Blood Pressure c
 
 ## The chain to get in onto the watch:
 
-- Bluetooth Blood Pressure Cuff takes reading saves it to its phonre app, which syncs to Android Health Connect on the Android phone
+- Bluetooth Blood Pressure Cuff takes reading and saves it to its phone app, which syncs to Android Health Connect on the Android phone
 
 - Home Assistant companion app on phone exposes health metrics from Android Health Connect as diagnostic sensors in HA, but you need to enable them first from the HA companion app on the phone (needs permissions). These entities are normally disabled by default...
 
