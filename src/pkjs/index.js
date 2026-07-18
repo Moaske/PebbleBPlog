@@ -106,17 +106,15 @@ function fetchBPData(settings, mode) {
       ws.send(JSON.stringify({ type: 'auth', access_token: s.haToken }));
 
     } else if (msg.type === 'auth_ok') {
-      var statisticIds = [s.sysEntity, s.diaEntity];
-      if (s.rhrEntity) statisticIds.push(s.rhrEntity);
-      console.log(p + ' requesting stats for: ' + JSON.stringify(statisticIds));
-
-      var start = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      var statIds = [s.sysEntity, s.diaEntity];
+      if (s.rhrEntity) statIds.push(s.rhrEntity);
+      var start = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString();
       ws.send(JSON.stringify({
-        id: 2,
+        id: 1,
         type: 'recorder/statistics_during_period',
         start_time: start,
-        statistic_ids: statisticIds,
-        period: '5minute',
+        statistic_ids: statIds,
+        period: 'hour',
         types: ['mean']
       }));
 
@@ -124,12 +122,12 @@ function fetchBPData(settings, mode) {
       console.log(p + ' WS auth invalid');
       ws.close();
 
-    } else if (msg.type === 'result' && msg.id === 2) {
+    } else if (msg.type === 'result' && msg.id === 1) {
       ws.close();
       if (msg.success && msg.result) {
         processStatistics(msg.result, s, p);
       } else {
-        console.log(p + ' WS stats failed: ' + JSON.stringify(msg.error));
+        console.log(p + ' WS failed: ' + JSON.stringify(msg.error));
       }
     }
   };
@@ -138,30 +136,12 @@ function fetchBPData(settings, mode) {
   ws.onclose = function() { console.log(p + ' WS closed'); };
 }
 
-// ----- Process statistics, match RHR by closest timestamp -----
-
-function findClosestRhr(rhrStats, targetMs, maxDiffMs) {
-  if (!rhrStats || !rhrStats.length) return null;
-  var best = null;
-  var bestDiff = Infinity;
-  for (var i = 0; i < rhrStats.length; i++) {
-    var e = rhrStats[i];
-    if (!e || e.mean === null || e.mean === undefined) continue;
-    var diff = Math.abs(new Date(e.start).getTime() - targetMs);
-    if (diff < bestDiff) {
-      bestDiff = diff;
-      best = e.mean;
-    }
-  }
-  if (bestDiff > maxDiffMs) return null; // too far away in time, don't use it
-  return best;
-}
-
 function formatFullDate(d) {
-  var day = DAY_NAMES[d.getDay()];
-  var month = MONTH_NAMES[d.getMonth()];
-  var line1 = day;
-  var line2 = d.getDate() + ' ' + month + ' ' + d.getFullYear();
+  var DAY_NAMES = ['Zondag','Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag'];
+  var MONTH_NAMES = ['januari','februari','maart','april','mei','juni','juli',
+                     'augustus','september','oktober','november','december'];
+  var line1 = DAY_NAMES[d.getDay()];
+  var line2 = d.getDate() + ' ' + MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear();
   var line3 = pad(d.getHours()) + ':' + pad(d.getMinutes()) + 'h';
   return line1 + '\n' + line2 + '\n' + line3;
 }
@@ -177,6 +157,7 @@ function processStatistics(result, s, p) {
     return;
   }
 
+  // Build systolic lookup by start timestamp
   var sysMap = {};
   for (var i = 0; i < sysStats.length; i++) {
     var se = sysStats[i];
@@ -185,44 +166,71 @@ function processStatistics(result, s, p) {
     }
   }
 
+  // Build RHR lookup array for closest-match search
+  var ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  var rhrByTime = [];
+  for (var r = 0; r < rhrStats.length; r++) {
+    var re = rhrStats[r];
+    if (!re || re.mean === null || re.mean === undefined) continue;
+    if (Math.abs(re.mean - Math.round(re.mean)) > 0.01) continue;
+    rhrByTime.push({ t: new Date(re.start).getTime(), v: Math.round(re.mean) });
+  }
+
+  // Walk oldest-first, integer filter + first-occurrence dedup
   var readings = [];
   var lastSys = -1, lastDia = -1;
-  var ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-  // Walk oldest-first: first occurrence of each value = moment of measurement
   for (var j = 0; j < diaStats.length && readings.length < 10; j++) {
     var de = diaStats[j];
     if (!de || !de.start || de.mean === null || de.mean === undefined) continue;
     var sysMean = sysMap[de.start];
     if (sysMean === undefined) continue;
 
+    // Integer filter — real readings have mean exactly equal to a whole number
+    // Transitional averages (e.g. 149.879) fail this check
+    if (Math.abs(sysMean - Math.round(sysMean)) > 0.01) continue;
+    if (Math.abs(de.mean - Math.round(de.mean)) > 0.01) continue;
+
     var sys = Math.round(sysMean);
     var dia = Math.round(de.mean);
     if (!sys || !dia) continue;
 
-    // Skip if identical to previous kept reading (still same measurement)
+    // First-occurrence dedup — skip until either value actually changes
     if (sys === lastSys && dia === lastDia) continue;
     lastSys = sys;
     lastDia = dia;
 
+    var timestamp = new Date(de.start).getTime();
     var d = new Date(de.start);
     var dateStr = pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ' +
                   pad(d.getHours()) + ':' + pad(d.getMinutes());
     var fullDateStr = formatFullDate(d);
 
-    var rhrMean = findClosestRhr(rhrStats, d.getTime(), ONE_DAY_MS);
-    var rhr = rhrMean !== null ? Math.round(rhrMean) : 0;
+    // Find closest RHR within 24 hours
+    var rhr = 0;
+    var bestRhrDiff = Infinity;
+    for (var ri = 0; ri < rhrByTime.length; ri++) {
+      var rdiff = Math.abs(rhrByTime[ri].t - timestamp);
+      if (rdiff < bestRhrDiff && rdiff < ONE_DAY_MS) {
+        bestRhrDiff = rdiff;
+        rhr = rhrByTime[ri].v;
+      }
+    }
 
     readings.push({
       systolic: sys, diastolic: dia, date: dateStr,
-      fulldate: fullDateStr, rhr: rhr
+      fulldate: fullDateStr, rhr: rhr, timestamp: timestamp
     });
   }
 
-  // Reverse so newest reading appears at top of the watch list
   readings.reverse();
-
   console.log(p + ' prepared ' + readings.length + ' unique readings');
+
+  for (var m = 0; m < readings.length; m++) {
+    console.log(p + ' reading ' + m + ': ' + readings[m].systolic + '/' +
+                readings[m].diastolic + ' @ ' + readings[m].date);
+  }
+
   if (!readings.length) {
     console.log(p + ' no matched readings found');
     return;
