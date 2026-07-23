@@ -1,5 +1,5 @@
 {
-    "author": "moaskefoto@gmail.com",
+    "author": "Moaske",
     "dependencies": {
         "@rebble/clay": "^1.0.10"
     },
@@ -9,32 +9,23 @@
         "capabilities": [
             "configurable"
         ],
-        "displayName": "BP Diary",
+        "displayName": "BP-Diary",
         "enableMultiJS": true,
-        "messageKeys": {
-            "DiaEntity": 3,
-            "HaToken": 1,
-            "HaUrl": 0,
-            "RhrEntity": 4,
-            "SysEntity": 2
-        },
+        "messageKeys": [
+            "HaUrl",
+            "HaToken",
+            "SysEntity",
+            "DiaEntity",
+            "RhrEntity"
+        ],
         "projectType": "native",
         "resources": {
             "media": [
                 {
-                    "file": "images/app_icon.png",
-                    "menuIcon": true,
-                    "name": "IMAGE_APP_ICON",
-                    "targetPlatforms": [
-                        "aplite",
-                        "basalt",
-                        "chalk",
-                        "diorite",
-                        "emery",
-                        "gabbro",
-                        "flint"
-                    ],
-                    "type": "png"
+                    "file": "images/action_icon_down.png",
+                    "name": "ACTION_ICON_DOWN",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
                 },
                 {
                     "file": "images/action_icon_up.png",
@@ -43,14 +34,15 @@
                     "type": "bitmap"
                 },
                 {
-                    "file": "images/action_icon_down.png",
-                    "name": "ACTION_ICON_DOWN",
+                    "file": "images/actio_icon_info.png",
+                    "name": "ACTION_ICON_INFO",
                     "targetPlatforms": null,
                     "type": "bitmap"
                 },
                 {
-                    "file": "images/action_icon_info.png",
-                    "name": "ACTION_ICON_INFO",
+                    "file": "images/app_icon.png",
+                    "menuIcon": true,
+                    "name": "APP_ICON",
                     "targetPlatforms": null,
                     "type": "bitmap"
                 }
@@ -63,13 +55,12 @@
             "chalk",
             "diorite",
             "emery",
-            "gabbro",
             "flint"
         ],
-        "uuid": "46b6f406-4b3e-4c93-82b3-6c5415f24427",
+        "uuid": "7bbc79d6-0bfc-45b1-b9dd-70cb0aff306b",
         "watchapp": {
             "watchface": false
         }
     },
-    "version": "1.4.2"
+    "version": "1.5.0"
 }
