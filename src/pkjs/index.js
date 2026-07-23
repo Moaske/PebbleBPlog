@@ -22,11 +22,11 @@ var MONTH_NAMES = ['januari','februari','maart','april','mei','juni','juli','aug
 
 function settingsFromClay(dict) {
   return {
-    haUrl:     (dict['0'] || dict['HaUrl']     || '').toString().trim(),
-    haToken:   (dict['1'] || dict['HaToken']   || '').toString().trim(),
-    sysEntity: (dict['2'] || dict['SysEntity'] || '').toString().trim().toLowerCase(),
-    diaEntity: (dict['3'] || dict['DiaEntity'] || '').toString().trim().toLowerCase(),
-    rhrEntity: (dict['4'] || dict['RhrEntity'] || '').toString().trim().toLowerCase()
+    haUrl:     (dict['10000'] || dict['HaUrl']     || '').toString().trim(),
+    haToken:   (dict['10001'] || dict['HaToken']   || '').toString().trim(),
+    sysEntity: (dict['10002'] || dict['SysEntity'] || '').toString().trim().toLowerCase(),
+    diaEntity: (dict['10003'] || dict['DiaEntity'] || '').toString().trim().toLowerCase(),
+    rhrEntity: (dict['10004'] || dict['RhrEntity'] || '').toString().trim().toLowerCase()
   };
 }
 
